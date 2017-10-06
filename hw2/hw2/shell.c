@@ -47,6 +47,9 @@ void parse( char* line, command_t* p_cmd ) {
 		
 		int j = 0;
 		while ( j < i ) {
+			// ASK MUNSELL WHY THIS DOESN'T WORK
+			//strcpy(p_cmd -> argv[j], tokens[j]);
+			// ASK MUNSELL WHY THIS DOES WORK
 			p_cmd -> argv[j] = tokens[j];				
 			j++;
 		}
