@@ -35,13 +35,13 @@ void parse( char* line, command_t* p_cmd ) {
 		token = strtok(NULL, " ");  
 	}
 	
-	// Empty String
 	if ( i <= 0 ) {
-		p_cmd -> path = NULL;
 		p_cmd -> argc = 0;
-		p_cmd -> argv = NULL;
+		// ASK MUNSELL WHY THIS CAUSES A SEG FAULT		
+		//p_cmd -> path = NULL;		
+		//p_cmd -> argv = NULL;
 	} else if ( find_fullpath(tokens[0], p_cmd) == 0 ) {
-		p_cmd -> argc = -1;
+		p_cmd -> argc = ERROR;
 	} else {
 		p_cmd -> argc = i;
 		
