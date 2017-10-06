@@ -24,44 +24,107 @@ void parse( char* line, command_t* p_cmd ) {
 
 	// ----------------------------------------
 	// TODO: you fully implement this function
-
+	char tokens[255][255];	
+	
+	char* token = strtok(line, " ");
+	
+	int i = 0;
+	while( token != NULL ) {
+		strcpy(tokens[i], token);
+		i++;
+		token = strtok(NULL, " ");  
+	}
+	
+	// Empty String
+	if ( i <= 0 ) {
+		p_cmd -> path = NULL;
+		p_cmd -> argc = 0;
+		p_cmd -> argv = NULL;
+	} else if ( find_fullpath(tokens[0], p_cmd) == 0 ) {
+		p_cmd -> argc = -1;
+	} else {
+		p_cmd -> argc = i;
+		p_cmd -> argv = malloc(sizeof( *(p_cmd -> argv) ) * (i+1));
+		
+		int j = 0;
+		while ( j < i ) {
+			p_cmd -> argv[j] = tokens[j];				
+			j++;
+		}
+		p_cmd -> argv[j] = NULL;
+	}
 } // end parse function
 
 
 int execute( command_t* p_cmd ) {
-
-	
 	// ----------------------------------------
 	// TODO: you fully implement this function
+	
+	int status = ERROR;
+	
+	if ( p_cmd -> argc > 0 ) {
+		if ( fork() == 0 ) {
+			execv(p_cmd -> path, p_cmd -> argv);
+			exit(0);			
+		}
+		wait(0);
+		status = SUCCESSFUL;
+	} else {
+		printf("Command not found...");
+	}
 
-	// -------------------------------------------
-	// Added a default return statement
-	// however this needs to be changed 
-	// to reflect the correct return 
-	// value described in the header file
-
-	return 0;
+	return status;
 
 
 } // end execute function
 
 
 int find_fullpath( char* command_name, command_t* p_cmd ) {
-
-
-	char* path = getenv( "PATH" );
-	
 	// ----------------------------------------
 	// TODO: you fully implement this function
+	int found;
 
+	strcpy(p_cmd -> path, command_name);
 
-	// -------------------------------------------
-	// Added a default return statement
-	// however this needs to be changed 
-	// to reflect the correct return 
-	// value described in the header file
+	if ( is_builtin(p_cmd) ) {
+		found = TRUE;
+	} else {	
+		char *token;
+		char path[255];
+		char full_path[255];
+		int exists;
 
-	return 0;
+		struct stat buffer;
+
+		strcpy(path, getenv( "PATH" ));
+
+		found = FALSE;	
+		token = strtok(path, ":");
+	
+		while ( token != NULL ) {
+			sprintf(full_path, "%s/%s", token, command_name);	
+			exists = stat(full_path, &buffer);
+		
+			if ( exists == 0 && ( S_IFDIR & buffer.st_mode ) ) {
+				// Directory Exists
+				strcpy(p_cmd -> path, full_path);
+				found = TRUE;
+				break;
+			} else if ( exists == 0 && ( S_IFREG & buffer.st_mode ) ) {
+				// File Exists
+				strcpy(p_cmd -> path, full_path);
+				found = TRUE;
+				break;
+			} else {
+				// Not a valid file or directory
+				strcpy(p_cmd -> path, command_name);
+			}
+
+			token = strtok(NULL, ":");  
+		}
+	}
+
+	return found;
 
 } // end find_fullpath function
 
