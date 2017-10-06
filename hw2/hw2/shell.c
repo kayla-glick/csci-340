@@ -44,7 +44,6 @@ void parse( char* line, command_t* p_cmd ) {
 		p_cmd -> argc = -1;
 	} else {
 		p_cmd -> argc = i;
-		p_cmd -> argv = malloc(sizeof( *(p_cmd -> argv) ) * (i+1));
 		
 		int j = 0;
 		while ( j < i ) {
