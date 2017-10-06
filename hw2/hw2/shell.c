@@ -53,7 +53,6 @@ void parse( char* line, command_t* p_cmd ) {
 			p_cmd -> argv[j] = tokens[j];				
 			j++;
 		}
-		p_cmd -> argv[j] = NULL;
 	}
 } // end parse function
 
@@ -66,6 +65,7 @@ int execute( command_t* p_cmd ) {
 	
 	if ( p_cmd -> argc > 0 ) {
 		if ( fork() == 0 ) {
+			p_cmd -> argv[p_cmd -> argc] = NULL;
 			execv(p_cmd -> path, p_cmd -> argv);
 			exit(0);			
 		}
