@@ -37,9 +37,6 @@ void parse( char* line, command_t* p_cmd ) {
 	
 	if ( i <= 0 ) {
 		p_cmd -> argc = 0;
-		// ASK MUNSELL WHY THIS CAUSES A SEG FAULT		
-		//p_cmd -> path = NULL;		
-		//p_cmd -> argv = NULL;
 	} else if ( find_fullpath(tokens[0], p_cmd) == 0 ) {
 		p_cmd -> argc = ERROR;
 	} else {
