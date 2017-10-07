@@ -44,7 +44,7 @@ void parse( char* line, command_t* p_cmd ) {
 		
 		int j = 0;
 		while ( j < i ) {
-			p_cmd -> argv[j] = tokens[j];				
+			strcpy(p_cmd -> argv[j], tokens[j]);		
 			j++;
 		}
 	}
