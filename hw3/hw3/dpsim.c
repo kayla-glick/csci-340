@@ -14,13 +14,12 @@ void* th_main( void* th_main_args ) {
 	// ---------------------------------------
 	// TODO: you add your implementation here
 	int i = 0;
-	int phils[5];
 		
 	for ( i=0; i<NUM_CHOPSTICKS; i++ ) {
 		printf("Chopstick %d set on the table...\n", i);
 		chopsticks[i] = -1;
 	}
-	
+	int phils[5];
 	for ( i=0; i<NUM_PHILOSOPHERS; i++ ) {
 		printf("Philosopher %d sits down at the table...\n", i);
 		phils[i] = i;
