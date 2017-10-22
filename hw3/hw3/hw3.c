@@ -28,7 +28,20 @@ int main( int argc, char** argv ) {
 
 	// ---------------------------------------
 	// TODO: you add your implementation here
-
+	pthread_t main_thread;	
+	int status;	
+	
+	if ( pthread_create(&main_thread, NULL, th_main, (void*) 0) != 0 ) {
+		status = 1;
+		exit(status);
+	}
+	if ( pthread_join(main_thread, NULL) != 0 ) {
+		status = 2;
+		exit(status);	
+	}
+	
+	printf("Status: %d\n", status);
+	
 	return 0;
 
 } // end main function
