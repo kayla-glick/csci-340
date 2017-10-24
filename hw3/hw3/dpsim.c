@@ -13,17 +13,16 @@ void* th_main( void* th_main_args ) {
 
 	// ---------------------------------------
 	// TODO: you add your implementation here
-	int i = 0;
+	long i = 0;
 		
 	for ( i=0; i<NUM_CHOPSTICKS; i++ ) {
-		printf("Chopstick %d set on the table...\n", i);
+		printf("Chopstick %ld set on the table...\n", i);
 		chopsticks[i] = -1;
 	}
-	int phils[5];
+
 	for ( i=0; i<NUM_PHILOSOPHERS; i++ ) {
-		printf("Philosopher %d sits down at the table...\n", i);
-		phils[i] = i;
-		if ( pthread_create(&philosophers[i], NULL, th_phil, (void*) &phils[i]) ) {
+		printf("Philosopher %ld sits down at the table...\n", i);
+		if ( pthread_create(&philosophers[i], NULL, th_phil, (void*) i) ) {
 			perror("Error creating philosopher thread...\n");
 			exit(1);		
 		}
@@ -75,7 +74,7 @@ void* th_main( void* th_main_args ) {
 	}
 	
 	for ( i=0; i<NUM_PHILOSOPHERS; i++ ) {
-		printf("Philosopher %d sets chopstick %d down and leaves the table...\n", i, i);
+		printf("Philosopher %ld sets chopstick %ld down and leaves the table...\n", i, i);
 		pthread_kill(philosophers[i], 0);	
 	}
 	
@@ -87,7 +86,7 @@ void* th_phil( void* th_phil_args ) {
 
 	// ---------------------------------------
 	// TODO: you add your implementation here
-	int id = *((int*) th_phil_args);
+	long id = (long) th_phil_args;
 	
 	while( TRUE ) {
 		delay(1000);
@@ -120,9 +119,9 @@ void eat( int phil_id ) {
 
 	delay(5000);
 	
-	pthread_mutex_unlock(&mutex[(phil_id + 1) % 5]);
 	chopsticks[(phil_id + 1) % 5] = -1;
+	pthread_mutex_unlock(&mutex[(phil_id + 1) % 5]);
 
-	pthread_mutex_unlock(&mutex[phil_id]);
 	chopsticks[phil_id] = -1;
+	pthread_mutex_unlock(&mutex[phil_id]);
 } // end eat function
