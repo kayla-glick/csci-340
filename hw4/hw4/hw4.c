@@ -91,8 +91,8 @@ inline void guard_check_room()
       semSignalB(&guard_state_sem);
     
       semWaitB(&num_students_sem);
+      printf("\tguard waiting for students to clear out with %2d students\n", num_students);
       while ( num_students > 0 ) {
-        printf("\tguard waiting for students to clear out with %2d students\n", num_students);
         semSignalB(&num_students_sem);
         int ms = rand_range(&seeds[0], MIN_SLEEP, MAX_SLEEP);
         millisleep(ms);
@@ -105,6 +105,7 @@ inline void guard_check_room()
       guard_state = 0;
       semSignalB(&guard_state_sem);
       semSignalB(&num_students_sem);
+      guard_walk_hallway();
     } else {
       // Wait for students
       printf("\tguard waiting to enter room with %2d students\n", num_students);
@@ -112,11 +113,6 @@ inline void guard_check_room()
       semSignalB(&guard_state_sem);
       semSignalB(&num_students_sem);
     }
-    semWaitB(&guard_state_sem);
-    if ( guard_state == 0 ) {
-      guard_walk_hallway();
-    }
-    semSignalB(&guard_state_sem);
   }
 }
 
