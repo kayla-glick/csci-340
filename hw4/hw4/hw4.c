@@ -45,6 +45,8 @@ int num_checks;     // number of checks the guard makes
 // TODO:  list here the "handful" of semaphores you will need to synchronize
 //        I've listed one you will need for sure, to "get you going"
 binary_semaphore mutex;  // to protect shared variables (including semaphores)
+binary_semaphore guard_state_sem;
+binary_semaphore num_students_sem;
 
 // this function contains the main synchronization logic for the guard
 inline void guard_check_room()
@@ -66,6 +68,56 @@ inline void guard_check_room()
   // (eg. num_students), you need to insure you are doing so in a
   // mutually exclusive fashion, for example, by calling
   // semWait(&mutex).
+
+  int checked = 0;
+
+  while ( checked == 0 ) {
+    semWaitB(&num_students_sem);
+    semWaitB(&guard_state_sem);
+    if ( num_students == 0) {
+      // Room Empty - Assess security
+      semSignalB(&num_students_sem);
+      assess_security();
+      guard_state = 0;
+      printf("\tguard left room\n");
+      semSignalB(&guard_state_sem);
+      checked = 1;
+      break;
+    } else if ( num_students >= capacity) {
+      // Room Full - Clear out
+      printf("\tguard clearing out room with %2d students\n", num_students);
+      semSignalB(&num_students_sem);
+      guard_state = 1;
+      semSignalB(&guard_state_sem);
+    
+      semWaitB(&num_students_sem);
+      while ( num_students > 0 ) {
+        printf("\tguard waiting for students to clear out with %2d students\n", num_students);
+        semSignalB(&num_students_sem);
+        int ms = rand_range(&seeds[0], MIN_SLEEP, MAX_SLEEP);
+        millisleep(ms);
+        semWaitB(&num_students_sem);
+      }
+    
+      semWaitB(&guard_state_sem);
+      printf("\tguard done clearing out room\n");
+      printf("\tguard left room\n");
+      guard_state = 0;
+      semSignalB(&guard_state_sem);
+      semSignalB(&num_students_sem);
+    } else {
+      // Wait for students
+      printf("\tguard waiting to enter room with %2d students\n", num_students);
+      guard_state = -1;
+      semSignalB(&guard_state_sem);
+      semSignalB(&num_students_sem);
+    }
+    semWaitB(&guard_state_sem);
+    if ( guard_state == 0 ) {
+      guard_walk_hallway();
+    }
+    semSignalB(&guard_state_sem);
+  }
 }
 
 // this function contains the main synchronization logic for a student
@@ -79,6 +131,20 @@ inline void student_study_in_room(long id)
   // study(), above.  You will also need to properly maintain the
   // global variable, num_students.  When done, students leave the
   // room.
+  semWaitB(&guard_state_sem);
+  if ( guard_state <= 0 ) {
+    semSignalB(&guard_state_sem);
+    semWaitB(&num_students_sem);
+    num_students++;
+    semSignalB(&num_students_sem);
+    study(id);
+    semWaitB(&num_students_sem);
+    num_students--;
+    printf("Student %2ld left the room\n", id);
+    semSignalB(&num_students_sem);
+  } else {
+    semSignalB(&guard_state_sem);
+  }
 }
 
 // *******************************************************************************
@@ -184,7 +250,9 @@ int main(int argc, char** argv)  // the main function
 
   // TODO: get three input parameters, convert, and properly store
   // HINT: use atoi() function (see man page for more details).
-
+  n = atoi(argv[1]);
+  capacity = atoi(argv[2]);
+  num_checks = atoi(argv[3]);
 
 
 
@@ -202,6 +270,8 @@ int main(int argc, char** argv)  // the main function
 
   semInitB(&mutex, 1);  // initialize mutex
   // TODO: for all your binary semaphores, complete the semaphore initializations
+  semInitB(&num_students_sem, 1);
+  semInitB(&guard_state_sem, 1);
 
   // initialize guard seed and create the guard thread
   seeds[0] = START_SEED;
