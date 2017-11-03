@@ -47,6 +47,8 @@ int num_checks;     // number of checks the guard makes
 binary_semaphore mutex;  // to protect shared variables (including semaphores)
 binary_semaphore guard_state_sem;
 binary_semaphore num_students_sem;
+binary_semaphore students_in_room_sem;
+binary_semaphore guard_wait_outside_sem;
 
 // this function contains the main synchronization logic for the guard
 inline void guard_check_room()
@@ -78,35 +80,42 @@ inline void guard_check_room()
     guard_state = 0;
     printf("\tguard left room\n");
     semSignalB(&guard_state_sem);
-    break;
-  } else if ( num_students >= capacity) {
-    // Room Full - Clear out
-    printf("\tguard clearing out room with %2d students\n", num_students);
-    semSignalB(&num_students_sem);
-    guard_state = 1;
-    semSignalB(&guard_state_sem);
-    
-    semWaitB(&num_students_sem);
-    printf("\tguard waiting for students to clear out with %2d students\n", num_students);
-    while ( num_students > 0 ) {
-      semSignalB(&num_students_sem);
-      int ms = rand_range(&seeds[0], MIN_SLEEP, MAX_SLEEP);
-      millisleep(ms);
-      semWaitB(&num_students_sem);
-    }
-    
-    semWaitB(&guard_state_sem);
-    printf("\tguard done clearing out room\n");
-    assess_security();
-    printf("\tguard left room\n");
-    guard_state = 0;
-    semSignalB(&guard_state_sem);
-    semSignalB(&num_students_sem);
-    guard_walk_hallway();
   } else {
-    // Wait for students
-    printf("\tguard waiting to enter room with %2d students\n", num_students);
-    guard_state = -1;
+
+    if ( num_students < capacity ) {
+      // Wait outside room
+      printf("\tguard waiting to enter room with %2d students\n", num_students);
+      semSignalB(&num_students_sem);
+      guard_state = -1;
+      semSignalB(&guard_state_sem);
+      // Force guard to wait outside room
+      semWaitB(&guard_wait_outside_sem);
+      semSignalB(&guard_wait_outside_sem);
+      semWaitB(&num_students_sem);
+      semWaitB(&guard_state_sem);
+    }
+
+    if ( num_students >= capacity ) {
+      // Room Full - Clear out
+      printf("\tguard clearing out room with %2d students\n", num_students);
+      semSignalB(&num_students_sem);
+      guard_state = 1;
+      semSignalB(&guard_state_sem);
+    
+      semWaitB(&num_students_sem);
+      printf("\tguard waiting for students to clear out with %2d students\n", num_students);
+      semSignalB(&num_students_sem);
+      semWaitB(&students_in_room_sem);
+    
+      semWaitB(&num_students_sem);
+      semWaitB(&guard_state_sem);
+      printf("\tguard done clearing out room\n");
+      assess_security();
+      printf("\tguard left room\n");
+      guard_state = 0;
+      semSignalB(&students_in_room_sem);
+    }
+
     semSignalB(&guard_state_sem);
     semSignalB(&num_students_sem);
   }
@@ -126,13 +135,30 @@ inline void student_study_in_room(long id)
   semWaitB(&guard_state_sem);
   if ( guard_state <= 0 ) {
     semSignalB(&guard_state_sem);
+
     semWaitB(&num_students_sem);
     num_students++;
+    if ( num_students == 1 ) {
+      semWaitB(&students_in_room_sem);
+      semWaitB(&guard_wait_outside_sem);
+    }
+    semWaitB(&guard_state_sem);
+    if ( guard_state == -1 && num_students >= capacity ) {
+      guard_state = 1;
+      semSignalB(&guard_wait_outside_sem);
+    }
+    semSignalB(&guard_state_sem);
     semSignalB(&num_students_sem);
+    
     study(id);
+
     semWaitB(&num_students_sem);
     num_students--;
-    printf("Student %2ld left the room\n", id);
+    printf("Student %2ld left the room\n", id); 
+    if ( num_students == 0 ) {
+      semSignalB(&students_in_room_sem);
+      semSignalB(&guard_wait_outside_sem);
+    }
     semSignalB(&num_students_sem);
   } else {
     semSignalB(&guard_state_sem);
@@ -264,6 +290,8 @@ int main(int argc, char** argv)  // the main function
   // TODO: for all your binary semaphores, complete the semaphore initializations
   semInitB(&num_students_sem, 1);
   semInitB(&guard_state_sem, 1);
+  semInitB(&students_in_room_sem, 1);
+  semInitB(&guard_wait_outside_sem, 1);
 
   // initialize guard seed and create the guard thread
   seeds[0] = START_SEED;
