@@ -68,51 +68,47 @@ inline void guard_check_room()
   // (eg. num_students), you need to insure you are doing so in a
   // mutually exclusive fashion, for example, by calling
   // semWait(&mutex).
-
-  int checked = 0;
-
-  while ( checked == 0 ) {
+	
+  semWaitB(&num_students_sem);
+  semWaitB(&guard_state_sem);
+  if ( num_students == 0) {
+    // Room Empty - Assess security
+    semSignalB(&num_students_sem);
+    assess_security();
+    guard_state = 0;
+    printf("\tguard left room\n");
+    semSignalB(&guard_state_sem);
+    break;
+  } else if ( num_students >= capacity) {
+    // Room Full - Clear out
+    printf("\tguard clearing out room with %2d students\n", num_students);
+    semSignalB(&num_students_sem);
+    guard_state = 1;
+    semSignalB(&guard_state_sem);
+    
     semWaitB(&num_students_sem);
-    semWaitB(&guard_state_sem);
-    if ( num_students == 0) {
-      // Room Empty - Assess security
+    printf("\tguard waiting for students to clear out with %2d students\n", num_students);
+    while ( num_students > 0 ) {
       semSignalB(&num_students_sem);
-      assess_security();
-      guard_state = 0;
-      printf("\tguard left room\n");
-      semSignalB(&guard_state_sem);
-      checked = 1;
-      break;
-    } else if ( num_students >= capacity) {
-      // Room Full - Clear out
-      printf("\tguard clearing out room with %2d students\n", num_students);
-      semSignalB(&num_students_sem);
-      guard_state = 1;
-      semSignalB(&guard_state_sem);
-    
+      int ms = rand_range(&seeds[0], MIN_SLEEP, MAX_SLEEP);
+      millisleep(ms);
       semWaitB(&num_students_sem);
-      printf("\tguard waiting for students to clear out with %2d students\n", num_students);
-      while ( num_students > 0 ) {
-        semSignalB(&num_students_sem);
-        int ms = rand_range(&seeds[0], MIN_SLEEP, MAX_SLEEP);
-        millisleep(ms);
-        semWaitB(&num_students_sem);
-      }
-    
-      semWaitB(&guard_state_sem);
-      printf("\tguard done clearing out room\n");
-      printf("\tguard left room\n");
-      guard_state = 0;
-      semSignalB(&guard_state_sem);
-      semSignalB(&num_students_sem);
-      guard_walk_hallway();
-    } else {
-      // Wait for students
-      printf("\tguard waiting to enter room with %2d students\n", num_students);
-      guard_state = -1;
-      semSignalB(&guard_state_sem);
-      semSignalB(&num_students_sem);
     }
+    
+    semWaitB(&guard_state_sem);
+    printf("\tguard done clearing out room\n");
+    assess_security();
+    printf("\tguard left room\n");
+    guard_state = 0;
+    semSignalB(&guard_state_sem);
+    semSignalB(&num_students_sem);
+    guard_walk_hallway();
+  } else {
+    // Wait for students
+    printf("\tguard waiting to enter room with %2d students\n", num_students);
+    guard_state = -1;
+    semSignalB(&guard_state_sem);
+    semSignalB(&num_students_sem);
   }
 }
 
