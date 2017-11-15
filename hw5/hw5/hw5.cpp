@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <time.h>
 #include "sniffex.h"
+#include "arpa/inet.h"
 
 int main(int argc, char **argv) {
   
@@ -91,7 +92,12 @@ int main(int argc, char **argv) {
 	http://linux.die.net/man/3/pcap_lookupnet
   */
 
-  pcap_lookupnet(ndevs[selected_dev-1].c_str(), &netp, &maskp, errbuf);
+  error_code = pcap_lookupnet(ndevs[selected_dev-1].c_str(), &netp, &maskp, errbuf);
+
+  if ( error_code == -1 ) {
+    printf("Error retrieving device information...\n");
+    return 1;
+  }
 
   /*
 	TODO: 2
@@ -111,8 +117,7 @@ int main(int argc, char **argv) {
   host = inet_ntoa(addr);
   printf("host %s\n", host);
 
-  addr.s_addr = netp | ~maskp;
-  inet = inet_ntoa(addr);
+  inet = inets[selected_dev-1];
   printf("inet %s\n", inet);
   
   addr.s_addr = maskp;
@@ -135,6 +140,8 @@ int main(int argc, char **argv) {
   const u_char* packet;
   struct pcap_pkthdr hdr;
   struct sniff_ethernet* eth_hdr;
+  struct sniff_ip* ip_hdr;
+  struct sniff_tcp* tcp_hdr;
   int sport;
   int dport;
   pcap_t* cap_desc;
@@ -152,6 +159,7 @@ int main(int argc, char **argv) {
 
   */
   
+  // Add error handle == NULL
   cap_desc = pcap_open_live(
                ndevs[selected_dev-1].c_str(),
                PCAP_ERRBUF_SIZE,
@@ -160,7 +168,11 @@ int main(int argc, char **argv) {
                errbuf
              );
 
-  printf("%s\n", errbuf);
+  if ( cap_desc == NULL ) {
+    printf("Error initializing live packet capture...\n");
+    return 1;
+  }
+
   while ( true ) {
     packet = pcap_next( cap_desc, &hdr ); 
 
@@ -178,14 +190,18 @@ int main(int argc, char **argv) {
 
       */
 
-      eth_hdr = (struct sniff_ethernet *) packet; 
-      
-      
-     
+      eth_hdr = (struct sniff_ethernet *)(packet); 
+      ip_hdr = (struct sniff_ip *)(packet + SIZE_ETHERNET);
+      tcp_hdr = (struct sniff_tcp *)(packet + SIZE_ETHERNET + (IP_HL(ip_hdr)*4));
+
+      if ( ntohs(eth_hdr->ether_type) == ETHERTYPE_IP && ip_hdr->ip_p == IPPROTO_TCP && (ntohs(tcp_hdr->th_sport) == 80 || ntohs(tcp_hdr->th_dport) == 80 )) {
+        printf("Source [ %s : %d ] -> Destination [ %s : %d ]\n", inet_ntoa(ip_hdr->ip_src), ntohs(tcp_hdr->th_sport), inet_ntoa(ip_hdr->ip_dst), ntohs(tcp_hdr->th_dport));
+      }
     }
   
   } 
   
   return 0;
 
-} 
+}
+
