@@ -90,22 +90,8 @@ int main(int argc, char **argv) {
 
 	http://linux.die.net/man/3/pcap_lookupnet
   */
- 
-  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+  pcap_lookupnet(ndevs[selected_dev-1].c_str(), &netp, &maskp, errbuf);
 
   /*
 	TODO: 2
@@ -120,10 +106,21 @@ int main(int argc, char **argv) {
 
 	http://linux.die.net/man/3/inet_ntoa
   */
-  
+ 
+  addr.s_addr = netp;
+  host = inet_ntoa(addr);
+  printf("host %s\n", host);
 
-
+  addr.s_addr = netp | ~maskp;
+  inet = inet_ntoa(addr);
+  printf("inet %s\n", inet);
   
+  addr.s_addr = maskp;
+  netmask = inet_ntoa(addr);
+  printf("netmask %s\n", netmask);
+  
+  std::cout<< "------------------------------------------"<< std::endl;
+
   for ( int i=0; i<inets.size(); i++ ) free( inets[i] ); 
   
   /**
@@ -155,16 +152,18 @@ int main(int argc, char **argv) {
 
   */
   
-  
+  cap_desc = pcap_open_live(
+               ndevs[selected_dev-1].c_str(),
+               PCAP_ERRBUF_SIZE,
+               0,
+               nano_time_spec.tv_nsec,
+               errbuf
+             );
 
-
-
-
-  
+  printf("%s\n", errbuf);
   while ( true ) {
-  
     packet = pcap_next( cap_desc, &hdr ); 
-  
+
     if ( packet != NULL ) {
 
       /*
@@ -178,7 +177,7 @@ int main(int argc, char **argv) {
 		   display the sender and receiver info if either has port = 80.
 
       */
-      
+
       eth_hdr = (struct sniff_ethernet *) packet; 
       
       
